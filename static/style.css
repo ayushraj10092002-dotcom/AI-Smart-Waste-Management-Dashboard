@@ -1,0 +1,279 @@
+*{
+    margin:0;
+    padding:0;
+    box-sizing:border-box;
+    font-family:Arial, Helvetica, sans-serif;
+}
+
+body{
+    background:linear-gradient(135deg,#dff6dd,#c9f7e3);
+    min-height:100vh;
+    scroll-behavior: smooth;
+}
+
+.navbar{
+    background:linear-gradient(90deg,#1b5e20,#43a047);
+    color:white;
+    padding:22px;
+    text-align:center;
+    font-size:34px;
+    font-weight:bold;
+    letter-spacing:1px;
+    box-shadow:0 4px 15px rgba(0,0,0,.2);
+    position:sticky;
+top:0;
+z-index:1000;
+}
+
+.container{
+    width:90%;
+    max-width:1200px;
+    margin:40px auto;
+}
+
+.card{
+    width:90%;
+    max-width:1100px;
+    margin:auto;
+    background:white;
+    border-radius:18px;
+    padding:35px;
+    box-shadow:0 10px 30px rgba(0,0,0,.15);
+    transition:.3s;
+}
+
+.card:hover{
+    transform:translateY(-6px);
+}
+
+h2{
+    text-align:center;
+    margin-bottom:25px;
+    color:#2e7d32;
+    font-size:32px;
+}
+
+table{
+    width:100%;
+    border-collapse:collapse;
+    margin-top:20px;
+    overflow:hidden;
+    border-radius:12px;
+}
+
+th{
+    background:#2e7d32;
+    color:white;
+    padding:15px;
+    position: sticky;
+    top: 0;
+}
+
+td{
+    padding:14px;
+    text-align:center;
+}
+tr{
+    transition:0.3s;
+}
+
+tr:nth-child(even){
+    background:#f5f5f5;
+}
+
+tr:hover{
+    background:#d9f8dd;
+}
+
+h3{
+    margin-top:35px;
+    text-align:center;
+    color:#2e7d32;
+    font-size:28px;
+}
+
+p{
+    margin-top:15px;
+    text-align:center;
+    font-size:22px;
+}
+
+b{
+    color:#2e7d32;
+    font-size:24px;
+}
+
+.stats{
+    display:flex;
+    justify-content:center;
+    gap:25px;
+    margin:40px auto;
+    flex-wrap:wrap;
+}
+
+.stat-card{
+    width:200px;
+    background:white;
+    border-radius:15px;
+    padding:20px;
+    text-align:center;
+    border-top:5px solid #2e7d32;
+    box-shadow:0 6px 15px rgba(0,0,0,.15);
+    transition:.3s;
+}
+
+.stat-card:hover,
+.chart-card:hover{
+    transform:translateY(-6px);
+    transition:0.3s ease;
+}
+
+.stat-card h3{
+    font-size:40px;
+    margin:0;
+}
+
+.stat-card h2{
+    font-size:34px;
+    color:#2e7d32;
+    margin:10px 0;
+}
+
+.stat-card p{
+    margin:0;
+    font-size:18px;
+    color:#555;
+}
+canvas{
+    width:100% !important;
+    max-height:350px;
+    margin-top:20px;
+    background:white;
+    border-radius:12px;
+    padding:10px;
+}
+
+#pieChart{
+    max-width:450px;
+    margin:20px auto;
+}
+.recommendation{
+    margin-top:40px;
+    background:#e8f5e9;
+    border-left:6px solid #2e7d32;
+    border-radius:12px;
+    padding:20px;
+    box-shadow:0 5px 15px rgba(0,0,0,.1);
+}
+
+.recommendation h3{
+    margin-top:0;
+    color:#2e7d32;
+}
+
+.recommendation p{
+    font-size:20px;
+    line-height:1.6;
+    color:#333;
+}
+footer{
+    margin-top:40px;
+    background:#2e7d32;
+    color:white;
+    text-align:center;
+    padding:18px;
+    font-size:16px;
+}
+/* Charts Layout */
+.charts{
+    display:grid;
+    grid-template-columns:1fr 1fr;
+    gap:25px;
+    margin-top:30px;
+}
+
+.chart-card{
+    background:#ffffff;
+    padding:20px;
+    border-radius:15px;
+    box-shadow:0 6px 15px rgba(0,0,0,.1);
+}
+
+.chart-card h3{
+    margin-top:0;
+    margin-bottom:15px;
+    text-align:center;
+    color:#2e7d32;
+}
+
+@media (max-width:768px){
+    .charts{
+        grid-template-columns:1fr;
+    }
+
+    .card{
+        width:95%;
+    }
+
+    .stat-card{
+        width:100%;
+    }
+}
+.prediction-box{
+    background:#e8f5e9;
+    border-left:6px solid #2e7d32;
+    border-radius:12px;
+    padding:20px;
+    margin:30px 0;
+    text-align:center;
+    box-shadow:0 5px 15px rgba(0,0,0,.1);
+}
+
+.prediction-box h2{
+    font-size:42px;
+    color:#2e7d32;
+    margin:10px 0;
+}
+.subtitle{
+    display:block;
+    margin-top:8px;
+    font-size:16px;
+    font-weight:400;
+    letter-spacing:0.5px;
+}
+.btn{
+    background:#2e7d32;
+    color:white;
+    padding:12px 20px;
+    border:none;
+    border-radius:8px;
+    cursor:pointer;
+    font-size:16px;
+    transition:0.3s;
+}
+
+.btn:hover{
+    background:#1b5e20;
+    transform:scale(1.05);
+}
+progress{
+    width:100%;
+    height:25px;
+    accent-color:#2e7d32;
+    margin-top:15px;
+}
+@media print {
+
+    .btn{
+        display:none;
+    }
+
+    body{
+        background:white;
+    }
+
+    .navbar{
+        position:static;
+    }
+
+}

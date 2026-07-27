@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Smart Waste Management Dashboard</title>
+
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+
+<body>
+
+    <div class="navbar">
+    🌱 AI Smart Waste Management Dashboard
+    <br>
+    <small class="subtitle">
+        Sustainable Waste Analytics using AI
+    </small>
+</div>
+    <div style="text-align:center;margin:15px;">
+    <span style="
+    background:#2e7d32;
+    color:white;
+    padding:8px 18px;
+    border-radius:20px;
+    font-weight:bold;">
+        ✔ AI Powered Dashboard
+    </span>
+</div>
+    <div style="text-align:center;color:white;background:#1b5e20;padding:8px;">
+🟢 System Status: Online | Last Updated: 27 July 2026
+</div>
+    <div class="stats">
+
+    <div class="stat-card">
+        <h3>♻️</h3>
+        <h2>130 Kg</h2>
+        <p>Today's Waste</p>
+    </div>
+
+    <div class="stat-card">
+        <h3>🌿</h3>
+        <h2>85 Kg</h2>
+        <p>Recycled</p>
+    </div>
+
+    <div class="stat-card">
+        <h3>🤖</h3>
+        <h2>92%</h2>
+        <p>AI Accuracy</p>
+    </div>
+
+    <div class="stat-card">
+        <h3>🗑️</h3>
+        <h2>18</h2>
+        <p>Smart Bins</p>
+    </div>
+
+</div>
+
+    <div class="container">
+
+        <div class="card">
+
+            <h2>📊 Weekly Waste Data</h2>
+
+            <table>
+                <tr>
+                    <th>Day</th>
+                    <th>Waste (Kg)</th>
+                </tr>
+
+                <tr>
+                    <td>Monday</td>
+                    <td>120</td>
+                </tr>
+
+                <tr>
+                    <td>Tuesday</td>
+                    <td>135</td>
+                </tr>
+
+                <tr>
+                    <td>Wednesday</td>
+                    <td>110</td>
+                </tr>
+
+                <tr>
+                    <td>Thursday</td>
+                    <td>145</td>
+                </tr>
+
+                <tr>
+                    <td>Friday</td>
+                    <td>130</td>
+                </tr>
+
+                <tr>
+                    <td>Saturday</td>
+                    <td>140</td>
+                </tr>
+
+                <tr>
+                    <td>Sunday</td>
+                    <td>125</td>
+                </tr>
+
+            </table>
+
+            <br>
+
+            <div class="prediction-box">
+    <h3>🤖 AI Prediction</h3>
+
+    <h2>130 Kg</h2>
+
+    <p>Expected Waste for Tomorrow</p>
+                <p><strong>Prediction Confidence:</strong> 92%</p>
+</div>
+            <hr style="margin:30px 0;">
+
+<div class="charts">
+
+    <div class="chart-card">
+        <h3>📈 Weekly Waste Analysis</h3>
+        <canvas id="wasteChart"></canvas>
+    </div>
+
+    <div class="chart-card">
+        <h3>📉 Waste Trend</h3>
+        <canvas id="lineChart"></canvas>
+    </div>
+
+</div>
+
+<br>
+
+<div class="chart-card">
+    <h3>🥧 Waste Distribution</h3>
+    <canvas id="pieChart"></canvas>
+</div>
+            <br><br>
+
+<div class="recommendation">
+    <br>
+
+
+    <h3>💡 AI Recommendation</h3>
+    <br>
+
+<h3>♻️ Recycling Progress</h3>
+
+<progress value="85" max="100"></progress>
+
+<p><b>85%</b> Waste Recycled Successfully</p>
+
+    <p>
+        Waste generation increased on <b>Thursday</b>.
+        Increase waste collection frequency by <b>15%</b> to avoid overflow.
+    </p>
+    <br>
+
+<center>
+    <button class="btn" onclick="window.print()">
+        📄 Download Report
+    </button>
+</center>
+</div>
+
+<div class="chart-card">
+    <h3>🕒 Live Date & Time</h3>
+    <h2 id="clock"></h2>
+</div>
+
+        </div>
+
+    </div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<script>
+const ctx = document.getElementById('wasteChart');
+
+new Chart(ctx,{
+    type:'bar',
+    data:{
+        labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+        datasets:[{
+            data:[120,135,110,145,130,140,125],
+            backgroundColor:'#2e7d32',
+            borderRadius:8
+        }]
+    },
+    options:{
+        plugins:{legend:{display:false}},
+        scales:{y:{beginAtZero:true}}
+    }
+});
+</script>
+<script>
+const ctx2 = document.getElementById('lineChart');
+
+new Chart(ctx2,{
+    type:'line',
+    data:{
+        labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'],
+        datasets:[{
+            label:'Waste (Kg)',
+            data:[120,135,110,145,130,140,125],
+            borderColor:'#2e7d32',
+            backgroundColor:'rgba(46,125,50,0.2)',
+            fill:true,
+            tension:0.4,
+            pointBackgroundColor:'#2e7d32',
+            pointRadius:5
+        }]
+    },
+    options:{
+        responsive:true,
+        plugins:{
+            legend:{
+                display:true
+            }
+        },
+        scales:{
+            y:{
+                beginAtZero:true
+            }
+        }
+    }
+});
+</script>
+<script>
+const ctx3 = document.getElementById('pieChart');
+
+new Chart(ctx3,{
+    type:'pie',
+    data:{
+        labels:['Organic','Plastic','Metal','Paper'],
+        datasets:[{
+            data:[45,25,15,15],
+            backgroundColor:[
+                '#4CAF50',
+                '#2196F3',
+                '#FF9800',
+                '#9C27B0'
+            ]
+        }]
+    },
+    options:{
+        responsive:true,
+        plugins:{
+            legend:{
+                position:'bottom'
+            }
+        }
+    }
+});
+</script>
+    <script>
+function updateClock(){
+    const now = new Date();
+    document.getElementById("clock").innerHTML =
+        now.toLocaleString();
+}
+setInterval(updateClock,1000);
+updateClock();
+</script>
+
+<footer>
+    © 2026 AI Smart Waste Management System <br>
+    Developed by Ayush Raj | Green Skills & Applied AI Internship
+</footer>
+
+</body>
+
+</html>
