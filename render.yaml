@@ -4,7 +4,7 @@ services:
     env: python
     plan: free
     buildCommand: pip install -r requirements.txt
-    startCommand: python -m flask --app app db upgrade && gunicorn app:app
+    startCommand: python -m flask --app app db upgrade && gunicorn app:app --bind 0.0.0.0:$PORT
     envVars:
       - key: PYTHON_VERSION
         value: 3.12.0
@@ -12,3 +12,4 @@ services:
         value: production
       - key: SECRET_KEY
         generateValue: true
+        
