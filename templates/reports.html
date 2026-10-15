@@ -1,0 +1,22 @@
+{% extends 'base.html' %}
+{% block title %}Reports | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row">
+    <div>
+        <p class="eyebrow">Operations reporting</p>
+        <h1>Waste reports</h1>
+        <p class="muted">Print-friendly summary for internal review and facility management.</p>
+    </div>
+    <button class="button button-primary" onclick="window.print()">Print report</button>
+</section>
+<section class="panel">
+    <div class="panel-heading"><h3>Report summary</h3><span>Current sample</span></div>
+    <div class="metric-grid metric-grid-compact">
+        <article class="metric-card"><span class="metric-label">Total waste</span><strong>{{ '%.1f'|format(analytics.total_waste_kg|weight_value) }} <small>{{ current_unit }}</small></strong></article>
+        <article class="metric-card"><span class="metric-label">Average waste</span><strong>{{ '%.1f'|format(analytics.daily_average_kg|weight_value) }} <small>{{ current_unit }}</small></strong></article>
+        <article class="metric-card"><span class="metric-label">Highest demo location</span><strong>{{ locations[0].name if locations else '—' }}</strong></article>
+        <article class="metric-card"><span class="metric-label">Highest day</span><strong>{{ analytics.highest_waste_day }}</strong></article>
+    </div>
+    <p class="data-disclaimer">This report is based only on the daily waste values in the source CSV. Recycling totals and category breakdowns are not present in the data, so they are intentionally omitted.</p>
+</section>
+{% endblock %}

@@ -1,0 +1,1 @@
+"""Application services for waste data and demo features."""

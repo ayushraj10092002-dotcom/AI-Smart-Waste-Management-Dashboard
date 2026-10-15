@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% block title %}Analytics | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row"><div><p class="eyebrow">CSV ANALYSIS</p><h1>Waste analytics</h1><p class="muted">Computed from {{ analytics.record_count }} rows in waste_data.csv.</p></div><span class="tag">Source: local CSV</span></section>
+<section class="metric-grid metric-grid-compact">
+    <article class="metric-card"><span class="metric-label">Weekly total</span><strong>{{ '%.1f'|format(analytics.weekly_total_kg|weight_value) }} <small>{{ current_unit }}</small></strong></article>
+    <article class="metric-card"><span class="metric-label">Daily average</span><strong>{{ '%.1f'|format(analytics.daily_average_kg|weight_value) }} <small>{{ current_unit }}</small></strong></article>
+    <article class="metric-card"><span class="metric-label">Minimum</span><strong>{{ '%.1f'|format(analytics.minimum_kg|weight_value) }} <small>{{ current_unit }}</small></strong></article>
+    <article class="metric-card"><span class="metric-label">Maximum</span><strong>{{ '%.1f'|format(analytics.maximum_kg|weight_value) }} <small>{{ current_unit }}</small></strong></article>
+</section>
+<section class="panel table-panel"><div class="panel-heading"><h2>Daily records</h2><span>Trend: {{ analytics.trend }}</span></div><div class="table-scroll"><table><thead><tr><th scope="col">Day / period</th><th scope="col">Waste ({{ current_unit }})</th><th scope="col">Share of total</th></tr></thead><tbody>{% for row in analytics.daily_waste %}<tr><td>{{ row.day }}</td><td>{{ '%.1f'|format(row.waste_kg|weight_value) }}</td><td>{{ '%.1f'|format(row.waste_kg / analytics.weekly_total_kg * 100 if analytics.weekly_total_kg else 0) }}%</td></tr>{% endfor %}</tbody></table></div></section>
+<p class="data-disclaimer">“Trend” compares the first and last recorded values; it is descriptive and does not establish a seasonal pattern.</p>
+{% endblock %}

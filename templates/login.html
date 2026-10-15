@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Sign in | WasteWise{% endblock %}
+{% block content %}
+<section class="panel form-panel auth-panel">
+    <p class="eyebrow">WASTEWISE ACCESS</p>
+    <h1>{{ catalog.login }}</h1>
+    <p class="muted">Use your organization account to access operational data.</p>
+    <form class="form-panel" method="post" action="{{ url_for('login') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="email">{{ catalog.email }}</label>
+        <input id="email" name="email" type="email" autocomplete="username" maxlength="254" required>
+        <label for="password">{{ catalog.password }}</label>
+        <input id="password" name="password" type="password" autocomplete="current-password" required>
+        <button class="button button-primary" type="submit">Sign in</button>
+        {% for category, message in get_flashed_messages(with_categories=true) %}
+        <p class="notice {% if category == 'error' %}notice-error{% endif %}" role="alert">{{ message }}</p>
+        {% endfor %}
+    </form>
+    <p class="auth-link">Don't have an account? <a href="{{ url_for('register') }}">Create Account</a></p>
+</section>
+{% endblock %}

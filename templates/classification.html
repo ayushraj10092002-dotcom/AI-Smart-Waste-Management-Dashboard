@@ -1,0 +1,21 @@
+{% extends 'base.html' %}
+{% block title %}Waste classification | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row"><div><p class="eyebrow">DISPOSAL GUIDE</p><h1>Waste classification</h1><p class="muted">Choose a known material category to see general handling guidance.</p></div><span class="tag tag-demo">Prototype · no image model</span></section>
+<section class="classification-layout">
+    <form class="panel form-panel" method="post" action="{{ url_for('classification_page') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <label for="waste-type">Waste category</label>
+        <select id="waste-type" name="waste_type" required>
+            <option value="">Select a category</option>
+            {% for category in categories %}
+            <option value="{{ category.label|lower }}" {% if selected_type|lower == category.label|lower %}selected{% endif %}>{{ category.label }}</option>
+            {% endfor %}
+        </select>
+        <button class="button button-primary" type="submit">Show disposal guidance</button>
+        <p class="help-text">This form applies a fixed category guide. It does not analyze an uploaded image or identify unknown waste.</p>
+        {% if error %}<p class="notice notice-error" role="alert">{{ error }}</p>{% endif %}
+    </form>
+    {% if result %}<article class="panel result-panel"><p class="eyebrow">CATEGORY GUIDE</p><h2>{{ result.label }}</h2><dl class="detail-list"><div><dt>Recycling possibility</dt><dd>{{ result.recyclable }}</dd></div><div><dt>Suggested disposal</dt><dd>{{ result.disposal }}</dd></div><div><dt>Collection priority</dt><dd>{{ result.collection_priority }}</dd></div></dl><p class="data-disclaimer">Check local waste authority rules; accepted materials differ by location.</p></article>{% else %}<article class="panel result-panel empty-prompt"><span aria-hidden="true">♻</span><h2>Guidance will appear here</h2><p>Choose a category to view handling suggestions.</p></article>{% endif %}
+</section>
+{% endblock %}

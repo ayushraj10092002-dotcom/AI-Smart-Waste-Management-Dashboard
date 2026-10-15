@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% block title %}Audit log | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row"><div><p class="eyebrow">ADMINISTRATION</p><h1>Audit log</h1><p class="muted">Recent organization-scoped account and operational events. Timestamps are stored in UTC.</p></div></section>
+<section class="panel table-panel"><div class="panel-heading"><h2>Recent events</h2><span>Latest {{ events|length }}</span></div><div class="table-scroll"><table><thead><tr><th>Timestamp (UTC)</th><th>User ID</th><th>Action</th><th>Resource</th><th>Resource ID</th><th>Status</th></tr></thead><tbody>{% for event in events %}<tr><td>{{ event.timestamp.isoformat() }}</td><td>{{ event.user_id if event.user_id else 'System' }}</td><td>{{ event.action }}</td><td>{{ event.resource }}</td><td>{{ event.resource_id or '—' }}</td><td>{{ event.status }}</td></tr>{% else %}<tr><td colspan="6">No audit events recorded yet.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endblock %}

@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% block title %}User management | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row">
+    <div><p class="eyebrow">ADMINISTRATION</p><h1>User management</h1><p class="muted">Manage active accounts and roles in {{ current_user.organization.name }}.</p></div>
+</section>
+<section class="ops-grid">
+    <form class="panel form-panel" method="post" action="{{ url_for('admin_users') }}">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <h2>Create user</h2>
+        <label for="new-email">Email address</label><input id="new-email" name="email" type="email" maxlength="254" required>
+        <label for="new-password">Temporary password</label><input id="new-password" name="password" type="password" minlength="12" autocomplete="new-password" required>
+        <label for="new-role">Role</label>
+        <select id="new-role" name="role" required>{% for role in roles %}<option value="{{ role }}">{{ role }}</option>{% endfor %}</select>
+        <button class="button button-primary" type="submit">Create account</button>
+        {% for message in get_flashed_messages() %}<p class="notice" role="status">{{ message }}</p>{% endfor %}
+    </form>
+    <section class="panel table-panel"><div class="panel-heading"><h2>Organization accounts</h2><span>{{ users|length }} users</span></div><div class="table-scroll"><table><thead><tr><th>Email</th><th>Role</th><th>Status</th><th>Action</th></tr></thead><tbody>{% for user in users %}<tr><td>{{ user.email }}</td><td>{{ user.role }}</td><td>{{ 'Active' if user.active else 'Inactive' }}</td><td>{% if user.id != current_user.id and user.active %}<form method="post" action="{{ url_for('deactivate_user', user_id=user.id) }}"><input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><button class="button button-primary" type="submit">Deactivate</button></form>{% endif %}</td></tr>{% endfor %}</tbody></table></div></section>
+</section>
+{% endblock %}

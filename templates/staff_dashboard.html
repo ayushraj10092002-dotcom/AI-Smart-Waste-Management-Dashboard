@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+{% block title %}Assigned operations | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row"><div><p class="eyebrow">ASSIGNED OPERATIONS</p><h1>Waste Operations</h1><p class="muted">Your assigned collection work and related operational alerts.</p></div><div class="system-status"><span class="status-dot"></span> Assignment-scoped data</div></section>
+<section class="metric-grid" aria-label="Assigned work metrics">
+    <article class="metric-card"><span class="metric-label">Assigned tasks</span><strong>{{ assigned_tasks|length }}</strong><span class="metric-note">Tasks assigned to your account</span></article>
+    <article class="metric-card"><span class="metric-label">Open alerts</span><strong>{{ alerts|length }}</strong><span class="metric-note">Assigned or related to assigned bins</span></article>
+    <article class="metric-card"><span class="metric-label">Assigned bins</span><strong>{{ bin_count }}</strong><span class="metric-note">Simulated unless marked connected</span></article>
+    <article class="metric-card"><span class="metric-label">Critical bins</span><strong>{{ critical_bin_count }}</strong><span class="metric-note">Assigned demo bins requiring attention</span></article>
+</section>
+<section class="ops-grid">
+    <article class="panel"><div class="panel-heading"><h3>Assigned collection tasks</h3><span>{{ assigned_tasks|length }} tasks</span></div><div class="table-scroll"><table><thead><tr><th>Bin</th><th>Location</th><th>Priority</th><th>Scheduled (UTC)</th><th>Status</th></tr></thead><tbody>{% for task in assigned_tasks %}<tr><td>{{ task.bin.bin_id if task.bin else '—' }}</td><td>{{ task.location.name if task.location else '—' }}</td><td>{{ task.priority }}</td><td>{{ task.scheduled_at|utc_iso if task.scheduled_at else 'Unscheduled' }}</td><td>{{ task.status }}</td></tr>{% else %}<tr><td colspan="5">No collection tasks are assigned to you.</td></tr>{% endfor %}</tbody></table></div></article>
+    <article class="panel"><div class="panel-heading"><h3>Assigned operational alerts</h3><span>{{ alerts|length }} active</span></div>{% for item in alerts %}<div class="alert-item severity-{{ item.severity|lower }}"><span class="severity-badge">{{ item.severity }}</span><div><strong>{{ item.title }}</strong><p>{{ item.message }}</p></div></div>{% else %}<p class="muted">No assigned alerts are active.</p>{% endfor %}</article>
+    <article class="panel"><div class="panel-heading"><h3>Assigned route order</h3><span>Simulated</span></div><ol class="route-list">{% for item in collection_plan %}<li><span class="route-rank">{{ item.rank }}</span><div><strong>{{ item.location }}</strong><small>{{ item.status }} · {{ item.fill_percent }}% full</small></div></li>{% else %}<li>No assigned bins are available.</li>{% endfor %}</ol></article>
+</section>
+<p class="data-disclaimer">This view only contains tasks, locations, bins, and alerts assigned to your account. Bin telemetry is simulated unless an authenticated integration has provided a reading.</p>
+{% endblock %}

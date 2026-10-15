@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% block title %}Smart bins | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row"><div><p class="eyebrow">BIN MONITORING</p><h1>Smart bins</h1><p class="muted">Fill levels and threshold-based status for this organization.</p></div><span class="tag tag-demo">Simulated unless sensor status is connected</span></section>
+<section class="bin-grid">{% for bin in bins %}<article class="panel bin-card"><div class="panel-heading"><div><p class="eyebrow">{{ bin.id }}</p><h2>{{ bin.location }}</h2></div><span class="bin-status status-{{ bin.status|lower }}">{{ bin.status }}</span></div><div class="fill-row"><span>Fill level</span><strong>{{ bin.fill_percent }}%</strong></div><progress max="100" value="{{ bin.fill_percent }}" aria-label="{{ bin.id }} fill level {{ bin.fill_percent }} percent">{{ bin.fill_percent }}%</progress><p class="metric-note">{% if bin.status == 'Critical' %}Dispatch attention recommended.{% elif bin.status == 'Warning' %}Plan collection soon.{% else %}No immediate action indicated.{% endif %}</p><p class="metric-note">{{ 'Authenticated sensor reading' if bin.sensor_status == 'online' and not bin.demo else 'Simulated sensor data' }}</p></article>{% endfor %}</section>
+<p class="data-disclaimer">Simulated fill values are examples, not live IoT telemetry. Connected readings require a valid organization device credential.</p>
+{% endblock %}

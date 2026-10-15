@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+{% block title %}Alerts | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row">
+    <div>
+        <p class="eyebrow">Attention center</p>
+        <h1>Alerts and operational warnings</h1>
+        <p class="muted">Alerts combine source CSV trend rules with simulated demo-bin thresholds.</p>
+    </div>
+    <span class="tag">{{ alerts|length }} active items</span>
+</section>
+<section class="panel">
+    {% for alert in alerts %}
+    <div class="alert-item severity-{{ alert.severity|lower }}">
+        <span class="severity-badge">{{ alert.severity }}</span>
+        <div>
+            <strong>{{ alert.title }}</strong>
+            <p>{{ alert.message }}</p>
+            <p><strong>Action:</strong> {{ alert.action }}</p>
+        </div>
+    </div>
+    {% else %}
+    <p class="muted">No operational alerts are active. The system is within the current operating thresholds.</p>
+    {% endfor %}
+</section>
+{% endblock %}

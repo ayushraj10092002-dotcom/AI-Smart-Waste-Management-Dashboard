@@ -1,0 +1,43 @@
+{% extends 'base.html' %}
+{% block title %}Collection Planner | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row">
+    <div>
+        <p class="eyebrow">Route planning</p>
+        <h1>Collection planner</h1>
+        <p class="muted">A simulated route based on bin fill percentage, location, and the current waste profile.</p>
+    </div>
+    <span class="tag tag-demo">Simulated route · not GPS</span>
+</section>
+<section class="ops-grid">
+    <article class="panel">
+        <div class="panel-heading"><h3>Recommended route</h3><span>Priority order</span></div>
+        <ol class="route-list">
+            {% for item in collection_plan %}
+            <li>
+                <span class="route-rank">{{ item.rank }}</span>
+                <div>
+                    <strong>{{ item.location }}</strong>
+                    <small>{{ item.status }} · {{ item.fill_percent }}% full</small>
+                </div>
+            </li>
+            {% endfor %}
+        </ol>
+    </article>
+    <article class="panel">
+        <div class="panel-heading"><h3>Planning logic</h3><span>Rule-based</span></div>
+        <p class="insight-line">Highest-fill simulated bins are prioritized first; this route does not use measured location-level waste data.</p>
+        <p class="insight-line">Critical bins are treated as immediate dispatch items, warning bins are scheduled for the next shift, and normal bins follow the standard operating plan.</p>
+    </article>
+    <article class="panel">
+        <div class="panel-heading"><h3>Operational note</h3><span>Demo</span></div>
+        <p class="insight-line">This planner is intentionally simulation-based: it does not claim live GPS routing or IoT-based optimization.</p>
+        <p class="insight-line">Use it as a practical operational guide while the system grows toward sensor-fed automation.</p>
+    </article>
+</section>
+{% if current_user.role == 'Staff' %}
+<section class="panel table-panel"><div class="panel-heading"><h2>Assigned collection tasks</h2><span>{{ assigned_tasks|length }} tasks</span></div><div class="table-scroll"><table><thead><tr><th>Bin</th><th>Location</th><th>Priority</th><th>Scheduled (UTC)</th><th>Status</th></tr></thead><tbody>{% for task in assigned_tasks %}<tr><td>{{ task.bin.bin_id if task.bin else '—' }}</td><td>{{ task.location.name if task.location else '—' }}</td><td>{{ task.priority }}</td><td>{{ task.scheduled_at|utc_iso if task.scheduled_at else 'Unscheduled' }}</td><td>{{ task.status }}</td></tr>{% else %}<tr><td colspan="5">No collection tasks are assigned to you.</td></tr>{% endfor %}</tbody></table></div></section>
+{% else %}
+<section class="panel table-panel"><div class="panel-heading"><h2>Collection tasks</h2><span>{{ collection_tasks|length }} tasks</span></div><div class="table-scroll"><table><thead><tr><th>Bin</th><th>Location</th><th>Assigned staff</th><th>Priority</th><th>Scheduled (UTC)</th><th>Status</th></tr></thead><tbody>{% for task in collection_tasks %}<tr><td>{{ task.bin.bin_id if task.bin else '—' }}</td><td>{{ task.location.name if task.location else '—' }}</td><td>{{ task.assigned_user.email if task.assigned_user else 'Unassigned' }}</td><td>{{ task.priority }}</td><td>{{ task.scheduled_at|utc_iso if task.scheduled_at else 'Unscheduled' }}</td><td>{{ task.status }}</td></tr>{% else %}<tr><td colspan="6">No collection tasks have been created.</td></tr>{% endfor %}</tbody></table></div></section>
+{% endif %}
+{% endblock %}

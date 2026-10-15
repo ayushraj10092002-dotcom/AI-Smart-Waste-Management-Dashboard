@@ -1,0 +1,34 @@
+{% extends 'base.html' %}
+{% block title %}Locations | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row">
+    <div>
+        <p class="eyebrow">Operational map</p>
+        <h1>Waste by location</h1>
+        <p class="muted">Static demo location values for operational planning; these are not measured by the source CSV or live sensors.</p>
+    </div>
+</section>
+<section class="panel table-panel">
+    <div class="panel-heading"><h2>Location breakdown</h2><span>Demo sample</span></div>
+    <div class="table-scroll">
+        <table>
+            <thead>
+                <tr>
+                    <th>Location</th>
+                    <th>Waste ({{ current_unit }})</th>
+                    <th>Notes</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in locations %}
+                <tr>
+                    <td>{{ item.name }}</td>
+                    <td>{{ ('%.1f'|format(item.waste_kg|weight_value) ~ ' ' ~ current_unit) if item.waste_kg is not none else 'Not measured' }}</td>
+                    <td>{{ item.note }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</section>
+{% endblock %}

@@ -1,0 +1,14 @@
+services:
+  - type: web
+    name: wastewise
+    env: python
+    plan: free
+    buildCommand: pip install -r requirements.txt
+    startCommand: python -m flask --app app db upgrade && gunicorn app:app
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.12.0
+      - key: WASTEWISE_ENV
+        value: production
+      - key: SECRET_KEY
+        generateValue: true

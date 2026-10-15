@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="{{ current_locale }}">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#173e32">
+    <title>{% block title %}WasteWise | Smart Waste Management{% endblock %}</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.svg') }}" type="image/svg+xml">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    {% block head %}{% endblock %}
+</head>
+<body>
+<header class="site-header">
+    <div class="brand-wrap">
+        <a class="brand" href="{{ url_for('dashboard') }}">
+            <span class="brand-mark">♻</span>
+            <span>WasteWise<small>Smart Waste Management</small></span>
+        </a>
+    </div>
+    {% if current_user.is_authenticated %}
+    <nav class="main-nav" aria-label="Main navigation">
+        {% for label, endpoint, permission in nav_items %}
+        <a href="{{ url_for(endpoint) }}" {% if request.endpoint == endpoint %}aria-current="page"{% endif %}>{{ label }}</a>
+        {% endfor %}
+    </nav>
+    <div class="header-account">
+        {% if can_manage_users %}<a href="{{ url_for('admin_users') }}">Users</a>{% endif %}
+        {% if can_view_audit %}<a href="{{ url_for('admin_audit') }}">Audit</a>{% endif %}
+        <span>{{ current_user.email }} · {{ current_user.role }}</span>
+        <form method="post" action="{{ url_for('logout') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="button button-ghost" type="submit">Sign out</button>
+        </form>
+    </div>
+    {% endif %}
+</header>
+<main class="page-shell">
+    {% block content %}{% endblock %}
+</main>
+<footer class="site-footer">WasteWise · Operational dashboard · {{ year }}</footer>
+{% block scripts %}{% endblock %}
+</body>
+</html>

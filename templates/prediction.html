@@ -1,0 +1,12 @@
+{% extends 'base.html' %}
+{% block title %}Prediction | WasteWise{% endblock %}
+{% block content %}
+<section class="page-title-row"><div><p class="eyebrow">SCIKIT-LEARN PROTOTYPE</p><h1>Waste prediction</h1><p class="muted">A supervised regression demonstration using the included historical rows.</p></div><span class="tag tag-demo">Not production-grade</span></section>
+{% if prediction.success %}
+<section class="prediction-layout">
+    <article class="panel prediction-result"><p class="eyebrow">NEXT ROW ESTIMATE</p><strong>{{ '%.1f'|format(prediction.prediction_kg|weight_value) }} <small>{{ current_unit }}</small></strong><p>Model: {{ prediction.model }}</p>{% if prediction.warning %}<p class="notice notice-warn">{{ prediction.warning }}</p>{% endif %}</article>
+    <article class="panel"><h2>How this model works</h2><dl class="detail-list"><div><dt>Features</dt><dd>{{ prediction.feature_description }}</dd></div><div><dt>Target</dt><dd>Waste quantity in {{ current_unit }}.</dd></div><div><dt>Training rows</dt><dd>{{ prediction.training_samples }}</dd></div><div><dt>Evaluation rows</dt><dd>{{ prediction.evaluation_samples }}</dd></div><div><dt>MAE</dt><dd>{{ '%.2f '|format(prediction.mae_kg|weight_value) ~ current_unit if prediction.mae_kg is not none else 'Not reported: sample is too small' }}</dd></div><div><dt>RMSE</dt><dd>{{ '%.2f '|format(prediction.rmse_kg|weight_value) ~ current_unit if prediction.rmse_kg is not none else 'Not reported: sample is too small' }}</dd></div></dl></article>
+</section>
+{% else %}<p class="notice notice-error">{{ prediction.error }}</p>{% endif %}
+<p class="data-disclaimer">This is a real fitted LinearRegression model, but seven weekly rows are not enough to claim useful generalization. The input feature is only row order; add dated observations and more history before using forecasts operationally.</p>
+{% endblock %}
