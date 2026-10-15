@@ -7,6 +7,7 @@ from unittest.mock import patch
 from urllib.parse import urlparse
 
 from app import app, limiter
+from flask_migrate import upgrade as run_migrations
 from models.database import DeviceCredential, Location, Organization, User, db
 from models.database import CollectionTask, NotificationOutbox, OperationalAlert, SmartBin
 from models.waste_model import train_and_predict
@@ -15,7 +16,7 @@ from services.demo_data import classify_waste, get_collection_plan, get_demo_bin
 from services.recommendations import build_recommendation
 from services.tenant_data import create_organization, get_organization_locations
 from werkzeug.security import generate_password_hash
-from sqlalchemy import select
+from sqlalchemy import inspect, select, text
 
 
 class WasteAnalyticsTests(unittest.TestCase):
@@ -574,6 +575,46 @@ class FlaskRouteTests(unittest.TestCase):
             app.wsgi_app = original_wsgi
             limiter.reset()
             limiter.enabled = False
+
+
+class MigrationTests(unittest.TestCase):
+    def setUp(self):
+        self.database_directory = tempfile.TemporaryDirectory()
+        self.original_uri = app.config["SQLALCHEMY_DATABASE_URI"]
+        app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{Path(self.database_directory.name) / 'migration.sqlite'}"
+        with app.app_context():
+            db.engine.dispose()
+
+    def tearDown(self):
+        with app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        app.config["SQLALCHEMY_DATABASE_URI"] = self.original_uri
+        self.database_directory.cleanup()
+
+    def test_upgrade_creates_fresh_schema_at_head(self):
+        with app.app_context():
+            run_migrations(directory=str(Path(app.root_path) / "migrations"))
+            revision = db.session.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            self.assertEqual(revision, "4d0f3d0a9c1")
+            self.assertIsNotNone(db.session.execute(text("SELECT 1 FROM organizations")).first())
+            self.assertIn("full_name", {column["name"] for column in inspect(db.engine).get_columns("users")})
+
+    def test_upgrade_adopts_complete_legacy_schema_without_losing_data(self):
+        with app.app_context():
+            db.create_all()
+            organization = Organization(name="Legacy Organization", slug="legacy-organization")
+            db.session.add(organization)
+            db.session.commit()
+            organization_id = organization.id
+
+            run_migrations(directory=str(Path(app.root_path) / "migrations"))
+
+            revision = db.session.execute(text("SELECT version_num FROM alembic_version")).scalar_one()
+            self.assertEqual(revision, "4d0f3d0a9c1")
+            preserved = db.session.get(Organization, organization_id)
+            self.assertEqual(preserved.name, "Legacy Organization")
+            self.assertIn("full_name", {column["name"] for column in inspect(db.engine).get_columns("users")})
 
 
 if __name__ == "__main__":

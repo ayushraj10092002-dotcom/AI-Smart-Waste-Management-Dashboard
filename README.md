@@ -39,7 +39,7 @@ python3 -m flask --app app db upgrade
 
 - `SECRET_KEY`: required when `WASTEWISE_ENV=production`; used to sign sessions and CSRF tokens. Keep it private and stable across instances.
 - `WASTEWISE_ENV`: use `production` to enable secure session cookies, HSTS, and required secret configuration.
-- `DATABASE_URL`: optional database URL. Defaults to local SQLite; PostgreSQL URLs are accepted with the `psycopg` driver.
+- `DATABASE_URL`: optional for local development, where SQLite is the default. Required in production and must be a persistent PostgreSQL connection URL; Render's local filesystem is ephemeral, so do not use SQLite there. PostgreSQL URLs are accepted with the `psycopg` driver.
 - `PORT`: optional direct-run port; hosting platforms generally supply it.
 
 ## Authentication and roles
@@ -66,7 +66,7 @@ For local development, use `python3 app.py`. For a production WSGI server:
 gunicorn app:app
 ```
 
-Render configuration is in `render.yaml`; set a persistent PostgreSQL `DATABASE_URL` in the service environment. The start command applies migrations before launching Gunicorn. Run `create-admin` once after the first deploy. `/health` is a minimal liveness check and does not expose infrastructure details.
+Render configuration is in `render.yaml`; create a Render PostgreSQL database (or use another managed PostgreSQL instance) and set the service's `DATABASE_URL` to its private connection URL before deploying. The blueprint marks this value as required input and the application rejects missing or non-PostgreSQL production URLs. The start command applies migrations before launching Gunicorn. Run `create-admin` once after the first deploy. `/health` is a minimal liveness check and does not expose infrastructure details.
 
 ## API
 

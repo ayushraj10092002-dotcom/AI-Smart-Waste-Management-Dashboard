@@ -68,9 +68,14 @@ environment = os.environ.get("WASTEWISE_ENV", "development").lower()
 secret_key = os.environ.get("SECRET_KEY")
 if environment == "production" and not secret_key:
     raise RuntimeError("SECRET_KEY must be configured in production.")
+database_url = os.environ.get("DATABASE_URL")
+if environment == "production" and not database_url:
+    raise RuntimeError("DATABASE_URL must be configured in production; use a persistent PostgreSQL database.")
+if environment == "production" and not database_url.lower().startswith(("postgres://", "postgresql://")):
+    raise RuntimeError("Production DATABASE_URL must point to PostgreSQL; SQLite is not persistent on Render.")
 app.config.update(
     SECRET_KEY=secret_key or secrets.token_urlsafe(32),
-    SQLALCHEMY_DATABASE_URI=os.environ.get("DATABASE_URL", f"sqlite:///{instance_path / 'wastewise.sqlite'}"),
+    SQLALCHEMY_DATABASE_URI=database_url or f"sqlite:///{instance_path / 'wastewise.sqlite'}",
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
     SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True},
     MAX_CONTENT_LENGTH=2 * 1024 * 1024,

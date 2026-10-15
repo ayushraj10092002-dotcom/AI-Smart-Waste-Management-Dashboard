@@ -7,6 +7,7 @@ Create Date: 2026-10-15 17:40:00
 """
 from alembic import op
 import sqlalchemy as sa
+from sqlalchemy import inspect
 
 
 revision = "4d0f3d0a9c1"
@@ -16,6 +17,8 @@ depends_on = None
 
 
 def upgrade():
+    if "full_name" in {column["name"] for column in inspect(op.get_bind()).get_columns("users")}:
+        return
     with op.batch_alter_table("users") as batch_op:
         batch_op.add_column(sa.Column("full_name", sa.String(length=160), nullable=False, server_default=""))
 

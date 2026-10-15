@@ -2,6 +2,7 @@ __pycache__/
 *.py[cod]
 .venv/
 .env
+.idea/
 instance/*.sqlite
 instance/*.sqlite3
 instance/*.db
