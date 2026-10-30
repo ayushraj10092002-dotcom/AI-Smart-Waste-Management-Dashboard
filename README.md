@@ -68,6 +68,28 @@ gunicorn app:app
 
 Render configuration is in `render.yaml`; create a Render PostgreSQL database (or use another managed PostgreSQL instance) and set the service's `DATABASE_URL` to its private connection URL before deploying. The blueprint marks this value as required input and the application rejects missing or non-PostgreSQL production URLs. The start command applies migrations before launching Gunicorn. Run `create-admin` once after the first deploy. `/health` is a minimal liveness check and does not expose infrastructure details.
 
+### Deploying to Vercel
+
+The application includes native Vercel serverless configuration (`api/index.py`, `vercel.json`, and `.python-version`):
+
+1. **Push to GitHub**:
+   Push the latest commits to your GitHub repository.
+
+2. **Import into Vercel**:
+   - Log in to [vercel.com](https://vercel.com) and click **Add New... > Project**.
+   - Import your GitHub repository.
+   - Framework Preset: **Other** (Vercel will detect `@vercel/python`).
+
+3. **Configure Environment Variables** (in Vercel Project Settings):
+   - `SECRET_KEY`: A secure random string (generate with `python3 -c 'import secrets; print(secrets.token_urlsafe(32))'`).
+   - `DATABASE_URL` (or `POSTGRES_URL`): PostgreSQL connection string from Neon, Supabase, or Vercel Postgres (e.g. `postgresql://user:password@host/dbname?sslmode=require`).
+     *Note: If no database URL is set, the application automatically falls back to temporary SQLite in `/tmp` for instant preview and demo testing.*
+   - `WASTEWISE_ENV`: `production`.
+
+4. **Accessing the Deployed App**:
+   - On the first HTTP request, database migrations and default demo data are automatically initialized.
+   - Sign in with the demo admin account (`admin@wastewise.local` / `AdminWasteWise2026!`), or visit `/register` to create a new organization account.
+
 ## API
 
 The new integration surface is under `/api/v1`. Session-authenticated writes require CSRF tokens; retrieve a session token from `GET /api/v1/csrf` and send it in `X-CSRFToken`. Device telemetry uses organization-scoped bearer credentials created by `python3 -m flask --app app create-device-token`; there is no public unauthenticated telemetry endpoint. Existing dashboard APIs remain available with authentication and permissions.

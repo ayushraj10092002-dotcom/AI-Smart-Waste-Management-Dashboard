@@ -1,5 +1,6 @@
 import hashlib
 import io
+import secrets
 import tempfile
 import unittest
 from pathlib import Path
@@ -89,7 +90,8 @@ class WasteAnalyticsTests(unittest.TestCase):
 
     def test_custom_location_note(self):
         with app.app_context():
-            org = create_organization("Note Org", "note-org")
+            slug = f"note-org-{secrets.token_hex(6)}"
+            org = create_organization("Note Org", slug)
             loc = Location(organization_id=org.id, name="Custom Site", demo=False)
             db.session.add(loc)
             db.session.commit()

@@ -62,22 +62,62 @@ from services.tenant_data import (
 )
 
 app = Flask(__name__)
-instance_path = Path(app.instance_path)
-instance_path.mkdir(parents=True, exist_ok=True)
-environment = os.environ.get("WASTEWISE_ENV", "development").lower()
+
+is_vercel = bool(os.environ.get("VERCEL") or os.environ.get("VERCEL_ENV"))
+if is_vercel:
+    instance_path = Path("/tmp/instance")
+else:
+    instance_path = Path(app.instance_path)
+
+try:
+    instance_path.mkdir(parents=True, exist_ok=True)
+except OSError:
+    instance_path = Path("/tmp/instance")
+    instance_path.mkdir(parents=True, exist_ok=True)
+
+environment = os.environ.get("WASTEWISE_ENV", os.environ.get("VERCEL_ENV", "development")).lower()
 secret_key = os.environ.get("SECRET_KEY")
 if environment == "production" and not secret_key:
-    raise RuntimeError("SECRET_KEY must be configured in production.")
-database_url = os.environ.get("DATABASE_URL")
+    if is_vercel:
+        logging.getLogger("wastewise").warning(
+            "SECRET_KEY is not set on Vercel. Using a generated ephemeral key. "
+            "Configure SECRET_KEY in Vercel Environment Variables to keep user sessions persistent across cold starts."
+        )
+        secret_key = secrets.token_urlsafe(32)
+    else:
+        raise RuntimeError("SECRET_KEY must be configured in production.")
+
+database_url = os.environ.get("DATABASE_URL") or os.environ.get("POSTGRES_URL")
 if environment == "production" and not database_url:
-    raise RuntimeError("DATABASE_URL must be configured in production; use a persistent PostgreSQL database.")
-if environment == "production" and not database_url.lower().startswith(("postgres://", "postgresql://")):
-    raise RuntimeError("Production DATABASE_URL must point to PostgreSQL; SQLite is not persistent on Render.")
+    if is_vercel:
+        logging.getLogger("wastewise").warning(
+            "DATABASE_URL or POSTGRES_URL is not set on Vercel. Falling back to temporary SQLite in /tmp. "
+            "Data will be ephemeral across serverless function recycles. "
+            "For production persistence on Vercel, attach a PostgreSQL database (e.g., Neon or Supabase) and set DATABASE_URL."
+        )
+        database_uri = f"sqlite:///{instance_path / 'wastewise.sqlite'}"
+    else:
+        raise RuntimeError("DATABASE_URL must be configured in production; use a persistent PostgreSQL database.")
+elif database_url:
+    database_uri = database_url
+    if database_uri.startswith("postgres://"):
+        database_uri = database_uri.replace("postgres://", "postgresql+psycopg://", 1)
+    elif database_uri.startswith("postgresql+psycopg2://"):
+        database_uri = database_uri.replace("postgresql+psycopg2://", "postgresql+psycopg://", 1)
+    elif database_uri.startswith("postgresql://") and not database_uri.startswith("postgresql+psycopg://"):
+        database_uri = database_uri.replace("postgresql://", "postgresql+psycopg://", 1)
+else:
+    database_uri = f"sqlite:///{instance_path / 'wastewise.sqlite'}"
+
+engine_options = {"pool_pre_ping": True}
+if is_vercel and not database_uri.startswith("sqlite"):
+    engine_options["pool_recycle"] = 300
+
 app.config.update(
     SECRET_KEY=secret_key or secrets.token_urlsafe(32),
-    SQLALCHEMY_DATABASE_URI=database_url or f"sqlite:///{instance_path / 'wastewise.sqlite'}",
+    SQLALCHEMY_DATABASE_URI=database_uri,
     SQLALCHEMY_TRACK_MODIFICATIONS=False,
-    SQLALCHEMY_ENGINE_OPTIONS={"pool_pre_ping": True},
+    SQLALCHEMY_ENGINE_OPTIONS=engine_options,
     MAX_CONTENT_LENGTH=2 * 1024 * 1024,
     SESSION_COOKIE_HTTPONLY=True,
     SESSION_COOKIE_SECURE=environment == "production",
@@ -85,15 +125,12 @@ app.config.update(
     PERMANENT_SESSION_LIFETIME=timedelta(hours=8),
     WTF_CSRF_TIME_LIMIT=3600,
 )
-if app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgres://"):
-    app.config["SQLALCHEMY_DATABASE_URI"] = app.config["SQLALCHEMY_DATABASE_URI"].replace("postgres://", "postgresql+psycopg://", 1)
-elif app.config["SQLALCHEMY_DATABASE_URI"].startswith("postgresql://"):
-    app.config["SQLALCHEMY_DATABASE_URI"] = app.config["SQLALCHEMY_DATABASE_URI"].replace("postgresql://", "postgresql+psycopg://", 1)
 
 db.init_app(app)
 Migrate(app, db)
 csrf = CSRFProtect(app)
-trusted_proxies = int(os.environ.get("TRUSTED_PROXIES", "0"))
+default_proxies = "1" if is_vercel else "0"
+trusted_proxies = int(os.environ.get("TRUSTED_PROXIES", default_proxies))
 if trusted_proxies > 0:
     app.wsgi_app = ProxyFix(app.wsgi_app, x_for=trusted_proxies, x_proto=trusted_proxies, x_host=trusted_proxies)
 
@@ -235,6 +272,57 @@ def initialize_database():
     if db.session.scalar(select(SchemaVersion).where(SchemaVersion.version == 1)) is None:
         db.session.add(SchemaVersion(version=1))
         db.session.commit()
+
+
+def seed_default_admin_if_empty():
+    try:
+        if db.session.scalar(select(Organization.id).limit(1)) is None:
+            default_org_name = os.environ.get("DEFAULT_ORG_NAME", "WasteWise Operations")
+            default_email = os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@wastewise.local")
+            default_password = os.environ.get("DEFAULT_ADMIN_PASSWORD", "AdminWasteWise2026!")
+            org_slug = slugify(default_org_name)
+            org = create_organization(default_org_name, org_slug)
+            admin_user = User(
+                organization_id=org.id,
+                full_name=f"{default_org_name} Administrator",
+                email=default_email,
+                password_hash=generate_password_hash(default_password),
+                role="Admin",
+            )
+            db.session.add(admin_user)
+            db.session.commit()
+            logging.getLogger("wastewise").info("Provisioned initial admin user for %s: %s", default_org_name, default_email)
+    except Exception as exc:
+        db.session.rollback()
+        logging.getLogger("wastewise").warning("Could not auto-seed default admin: %s", exc)
+
+
+_db_initialized = False
+
+
+def ensure_database_initialized():
+    global _db_initialized
+    if _db_initialized:
+        return
+    try:
+        from sqlalchemy import inspect
+        inspector = inspect(db.engine)
+        tables = inspector.get_table_names()
+        if "organizations" not in tables or "alembic_version" not in tables:
+            initialize_database()
+            if not app.config.get("TESTING"):
+                seed_default_admin_if_empty()
+        elif not app.config.get("TESTING"):
+            seed_default_admin_if_empty()
+        _db_initialized = True
+    except Exception as exc:
+        logging.getLogger("wastewise").warning("Database initialization check: %s", exc)
+
+
+@app.before_request
+def before_request_init_db():
+    if not _db_initialized and not app.config.get("TESTING"):
+        ensure_database_initialized()
 
 
 @app.cli.command("init-db")

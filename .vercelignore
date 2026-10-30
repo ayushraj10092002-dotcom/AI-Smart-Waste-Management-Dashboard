@@ -1,0 +1,15 @@
+.git
+.gitignore
+.venv
+.venv*
+tests
+.pytest_cache
+.idea
+instance/*.sqlite
+instance/*.sqlite3
+instance/*.db
+__pycache__
+*.pyc
+.DS_Store
+docs
+render.yaml
