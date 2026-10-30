@@ -7,3 +7,5 @@ instance/*.sqlite
 instance/*.sqlite3
 instance/*.db
 .DS_Store
+.vercel
+.env*
