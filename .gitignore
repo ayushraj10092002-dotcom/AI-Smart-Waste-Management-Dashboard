@@ -9,3 +9,5 @@ instance/*.db
 .DS_Store
 .vercel
 .env*
+.agents/
+skills-lock.json

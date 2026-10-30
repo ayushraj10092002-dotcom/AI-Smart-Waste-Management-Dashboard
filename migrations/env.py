@@ -1,3 +1,4 @@
+import os
 import logging
 from logging.config import fileConfig
 
@@ -25,6 +26,13 @@ def get_engine():
 
 
 def get_engine_url():
+    unpooled = os.environ.get("DATABASE_URL_UNPOOLED")
+    if unpooled:
+        if unpooled.startswith("postgres://"):
+            return unpooled.replace("postgres://", "postgresql+psycopg://", 1).replace('%', '%%')
+        elif unpooled.startswith("postgresql://") and not unpooled.startswith("postgresql+psycopg://"):
+            return unpooled.replace("postgresql://", "postgresql+psycopg://", 1).replace('%', '%%')
+        return unpooled.replace('%', '%%')
     try:
         return get_engine().url.render_as_string(hide_password=False).replace(
             '%', '%%')

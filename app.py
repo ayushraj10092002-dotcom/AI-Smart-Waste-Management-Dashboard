@@ -16,6 +16,7 @@ from flask_login import LoginManager, current_user, login_required, login_user, 
 from flask_migrate import Migrate, upgrade as run_migrations
 from flask_wtf.csrf import CSRFError, CSRFProtect
 from sqlalchemy import event, select, update
+from sqlalchemy.orm import joinedload
 from sqlalchemy.engine import Engine
 from sqlalchemy.exc import IntegrityError
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -109,9 +110,25 @@ elif database_url:
 else:
     database_uri = f"sqlite:///{instance_path / 'wastewise.sqlite'}"
 
-engine_options = {"pool_pre_ping": True}
-if is_vercel and not database_uri.startswith("sqlite"):
-    engine_options["pool_recycle"] = 300
+def build_engine_options(database_uri: str, is_vercel: bool = False) -> dict:
+    options = {"pool_pre_ping": True}
+    if database_uri.startswith(("postgresql://", "postgresql+psycopg://")):
+        options.update({
+            "pool_recycle": 300,
+            "pool_size": int(os.environ.get("DB_POOL_SIZE", "5")),
+            "max_overflow": int(os.environ.get("DB_MAX_OVERFLOW", "2")),
+            "pool_timeout": 30,
+            "connect_args": {
+                "prepare_threshold": None,
+                "connect_timeout": 10,
+            },
+        })
+    elif is_vercel:
+        options["pool_recycle"] = 300
+    return options
+
+
+engine_options = build_engine_options(database_uri, is_vercel=is_vercel)
 
 app.config.update(
     SECRET_KEY=secret_key or secrets.token_urlsafe(32),
@@ -230,6 +247,16 @@ def set_security_headers(response):
     response.headers.setdefault("X-Frame-Options", "DENY")
     response.headers.setdefault("Referrer-Policy", "strict-origin-when-cross-origin")
     response.headers.setdefault("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+    csp = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; "
+        "style-src 'self' 'unsafe-inline'; "
+        "img-src 'self' data:; "
+        "font-src 'self'; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none';"
+    )
+    response.headers.setdefault("Content-Security-Policy", csp)
     if app.config["SESSION_COOKIE_SECURE"]:
         response.headers.setdefault("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
     return response
@@ -278,14 +305,19 @@ def seed_default_admin_if_empty():
     try:
         if db.session.scalar(select(Organization.id).limit(1)) is None:
             default_org_name = os.environ.get("DEFAULT_ORG_NAME", "WasteWise Operations")
-            default_email = os.environ.get("DEFAULT_ADMIN_EMAIL", "admin@wastewise.local")
-            default_password = os.environ.get("DEFAULT_ADMIN_PASSWORD", "AdminWasteWise2026!")
+            default_email = os.environ.get("DEFAULT_ADMIN_EMAIL")
+            default_password = os.environ.get("DEFAULT_ADMIN_PASSWORD")
+            if not default_email or not default_password:
+                logging.getLogger("wastewise").info(
+                    "Database initialized with zero organizations. Register via /register or use 'flask create-admin'."
+                )
+                return
             org_slug = slugify(default_org_name)
             org = create_organization(default_org_name, org_slug)
             admin_user = User(
                 organization_id=org.id,
                 full_name=f"{default_org_name} Administrator",
-                email=default_email,
+                email=default_email.strip().casefold(),
                 password_hash=generate_password_hash(default_password),
                 role="Admin",
             )
@@ -372,6 +404,28 @@ def create_admin_command(organization: str, email: str, timezone_name: str, lang
     click.echo(f"Administrator created for {organization_row.name}. Sign in at /login.")
 
 
+@app.cli.command("reset-password")
+@click.option("--email", prompt=True, help="User email address")
+@click.option("--password", default=None, help="New password (prompted securely if omitted)")
+def reset_password_command(email: str, password: str | None = None):
+    """Securely reset a user's password."""
+    initialize_database()
+    email = email.strip().casefold()
+    user = db.session.scalar(select(User).where(User.email == email))
+    if user is None:
+        raise click.ClickException("User with that email address does not exist.")
+    new_password = password if password else click.prompt("New password", hide_input=True, confirmation_prompt=True)
+    err = password_validation_error(new_password)
+    if err:
+        raise click.ClickException(err)
+    user.password_hash = generate_password_hash(new_password)
+    user.failed_login_count = 0
+    user.locked_until = None
+    record_audit("user.password_reset", "user", user.id, organization_id=user.organization_id)
+    db.session.commit()
+    click.echo(f"Password successfully reset for {user.email}.")
+
+
 @app.cli.command("create-device-token")
 @click.option("--organization", "organization_slug", prompt=True, help="Organization slug")
 @click.option("--name", prompt=True, help="Credential label")
@@ -400,9 +454,13 @@ def get_active_data() -> pd.DataFrame:
 
 
 def get_persisted_alert_items(organization_id: int, user_id: int | None = None) -> list[dict]:
-    query = select(OperationalAlert).where(
-        OperationalAlert.organization_id == organization_id,
-        OperationalAlert.status.in_(("Open", "Acknowledged")),
+    query = (
+        select(OperationalAlert)
+        .options(joinedload(OperationalAlert.location), joinedload(OperationalAlert.bin))
+        .where(
+            OperationalAlert.organization_id == organization_id,
+            OperationalAlert.status.in_(("Open", "Acknowledged")),
+        )
     )
     if user_id is not None:
         query = query.where(OperationalAlert.assigned_to == user_id)
@@ -660,8 +718,9 @@ def admin_users():
         role = request.form.get("role", "")
         if not EMAIL_PATTERN.fullmatch(email) or len(email) > 254:
             abort(422, description="Enter a valid email address.")
-        if len(password) < 12:
-            abort(422, description="Temporary passwords must contain at least 12 characters.")
+        password_err = password_validation_error(password)
+        if password_err:
+            abort(422, description=password_err)
         if role not in ROLE_PERMISSIONS:
             abort(422, description="Choose a supported role.")
         if db.session.scalar(select(User.id).where(User.email == email)):
@@ -706,6 +765,27 @@ def deactivate_user(user_id: int):
     user.active = False
     record_audit("user.deactivated", "user", user.id)
     db.session.commit()
+    return redirect(url_for("admin_users"))
+
+
+@app.post("/admin/users/<int:user_id>/reset-password")
+@permission_required("users.manage")
+@limiter.limit("10 per minute")
+def admin_reset_user_password(user_id: int):
+    user = db.session.scalar(select(User).where(User.id == user_id, User.organization_id == current_user.organization_id))
+    if user is None:
+        abort(404)
+    new_password = request.form.get("password", "")
+    err = password_validation_error(new_password)
+    if err:
+        flash(err, "error")
+        return redirect(url_for("admin_users"))
+    user.password_hash = generate_password_hash(new_password)
+    user.failed_login_count = 0
+    user.locked_until = None
+    record_audit("user.admin_password_reset", "user", user.id, organization_id=current_user.organization_id)
+    db.session.commit()
+    flash(f"Password reset for {user.email}.", "success")
     return redirect(url_for("admin_users"))
 
 

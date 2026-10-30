@@ -7,7 +7,7 @@ from pathlib import Path
 from unittest.mock import patch
 from urllib.parse import urlparse
 
-from app import app, limiter
+from app import app, build_engine_options, limiter
 from flask_migrate import upgrade as run_migrations
 from models.database import DeviceCredential, Location, Organization, User, db
 from models.database import CollectionTask, NotificationOutbox, OperationalAlert, SmartBin
@@ -617,6 +617,132 @@ class MigrationTests(unittest.TestCase):
             preserved = db.session.get(Organization, organization_id)
             self.assertEqual(preserved.name, "Legacy Organization")
             self.assertIn("full_name", {column["name"] for column in inspect(db.engine).get_columns("users")})
+
+
+class SecurityAndDatabaseTests(unittest.TestCase):
+    @classmethod
+    def setUpClass(cls):
+        cls.database_directory = tempfile.TemporaryDirectory()
+        app.config.update(
+            TESTING=True,
+            WTF_CSRF_ENABLED=False,
+            SECRET_KEY="test-only-secret-key-with-sufficient-entropy",
+            SQLALCHEMY_DATABASE_URI=f"sqlite:///{Path(cls.database_directory.name) / 'security_tests.sqlite'}",
+        )
+        limiter.enabled = False
+        with app.app_context():
+            db.engine.dispose()
+            db.drop_all()
+            db.create_all()
+
+    @classmethod
+    def tearDownClass(cls):
+        limiter.enabled = True
+        with app.app_context():
+            db.session.remove()
+            db.engine.dispose()
+        cls.database_directory.cleanup()
+
+    def setUp(self):
+        with app.app_context():
+            db.drop_all()
+            db.create_all()
+            self.organization = create_organization("Sec Org", f"sec-org-{secrets.token_hex(4)}")
+            self.admin = User(
+                organization_id=self.organization.id,
+                email="secadmin@example.test",
+                password_hash=generate_password_hash("AdminPass2026!Secure"),
+                role="Admin",
+            )
+            db.session.add(self.admin)
+            db.session.commit()
+            self.admin_id = self.admin.id
+            self.organization_id = self.organization.id
+        self.client = app.test_client()
+
+    def login_admin(self):
+        return self.client.post("/login", data={"email": "secadmin@example.test", "password": "AdminPass2026!Secure"})
+
+    def test_security_headers_present(self):
+        resp = self.client.get("/health")
+        self.assertEqual(resp.status_code, 200)
+        self.assertEqual(resp.headers.get("X-Content-Type-Options"), "nosniff")
+        self.assertEqual(resp.headers.get("X-Frame-Options"), "DENY")
+        self.assertIn("default-src 'self'", resp.headers.get("Content-Security-Policy", ""))
+        self.assertIn("geolocation=()", resp.headers.get("Permissions-Policy", ""))
+        self.assertEqual(resp.headers.get("Referrer-Policy"), "strict-origin-when-cross-origin")
+
+    def test_admin_user_creation_password_complexity(self):
+        self.login_admin()
+        resp_weak = self.client.post("/admin/users", data={
+            "full_name": "Test Staff",
+            "email": "staff1@example.test",
+            "role": "Staff",
+            "password": "weak",
+        }, follow_redirects=True)
+        self.assertIn(b"at least 12 characters", resp_weak.data)
+        with app.app_context():
+            self.assertIsNone(db.session.scalar(select(User).where(User.email == "staff1@example.test")))
+
+        resp_strong = self.client.post("/admin/users", data={
+            "full_name": "Test Staff",
+            "email": "staff1@example.test",
+            "role": "Staff",
+            "password": "StrongStaffPass2026!",
+        }, follow_redirects=True)
+        self.assertEqual(resp_strong.status_code, 200)
+        with app.app_context():
+            created_user = db.session.scalar(select(User).where(User.email == "staff1@example.test"))
+            self.assertIsNotNone(created_user)
+            self.assertEqual(created_user.role, "Staff")
+
+    def test_admin_reset_user_password_endpoint(self):
+        with app.app_context():
+            staff = User(
+                organization_id=self.organization_id,
+                email="staff_reset@example.test",
+                password_hash=generate_password_hash("OldStaffPass2026!"),
+                role="Staff",
+            )
+            db.session.add(staff)
+            db.session.commit()
+            staff_id = staff.id
+
+        unauth_resp = self.client.post(f"/admin/users/{staff_id}/reset-password", data={"password": "NewStrongPass2026!"})
+        self.assertEqual(unauth_resp.status_code, 302)
+
+        self.login_admin()
+
+        resp_weak = self.client.post(f"/admin/users/{staff_id}/reset-password", data={"password": "weak"}, follow_redirects=True)
+        self.assertIn(b"at least 12 characters", resp_weak.data)
+
+        resp_strong = self.client.post(f"/admin/users/{staff_id}/reset-password", data={"password": "BrandNewStaffPass2026!"}, follow_redirects=True)
+        self.assertEqual(resp_strong.status_code, 200)
+
+        staff_client = app.test_client()
+        login_resp = staff_client.post("/login", data={"email": "staff_reset@example.test", "password": "BrandNewStaffPass2026!"})
+        self.assertEqual(login_resp.status_code, 302)
+
+    def test_cli_reset_password_command(self):
+        runner = app.test_cli_runner()
+        result_nonexistent = runner.invoke(args=["reset-password", "--email", "ghost@example.test", "--password", "StrongPass2026!"])
+        self.assertIn("does not exist", result_nonexistent.output)
+
+        result_weak = runner.invoke(args=["reset-password", "--email", "secadmin@example.test", "--password", "short"])
+        self.assertIn("at least 12 characters", result_weak.output)
+
+        result_success = runner.invoke(args=["reset-password", "--email", "secadmin@example.test", "--password", "NewAdminSecretPass2026!"])
+        self.assertIn("Password successfully reset", result_success.output)
+
+        login_resp = self.client.post("/login", data={"email": "secadmin@example.test", "password": "NewAdminSecretPass2026!"})
+        self.assertEqual(login_resp.status_code, 302)
+
+    def test_neon_postgres_engine_configuration(self):
+        pg_options = build_engine_options("postgresql://user:pass@ep-sample-pooler.us-east-1.aws.neon.tech/neondb")
+        self.assertEqual(pg_options.get("pool_recycle"), 300)
+        self.assertEqual(pg_options.get("connect_args"), {"prepare_threshold": None, "connect_timeout": 10})
+        sqlite_options = build_engine_options("sqlite:///test.sqlite")
+        self.assertEqual(sqlite_options, {"pool_pre_ping": True})
 
 
 if __name__ == "__main__":

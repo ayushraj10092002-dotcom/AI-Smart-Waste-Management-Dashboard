@@ -1,5 +1,6 @@
 import pandas as pd
 from sqlalchemy import select
+from sqlalchemy.orm import joinedload
 
 from models.database import CollectionTask, DatasetBatch, Location, Organization, SmartBin, WasteRecord, db
 from services.analytics import DATA_FILE, DatasetError, load_waste_data
@@ -102,7 +103,7 @@ def get_organization_locations(organization_id: int, user_id: int | None = None)
 
 
 def get_organization_bins(organization_id: int, user_id: int | None = None) -> list[dict]:
-    query = select(SmartBin).where(SmartBin.organization_id == organization_id)
+    query = select(SmartBin).options(joinedload(SmartBin.location)).where(SmartBin.organization_id == organization_id)
     if user_id is not None:
         query = query.join(CollectionTask, CollectionTask.bin_id == SmartBin.id).where(CollectionTask.assigned_user_id == user_id).distinct()
     bins = db.session.scalars(query.order_by(SmartBin.bin_id)).all()
