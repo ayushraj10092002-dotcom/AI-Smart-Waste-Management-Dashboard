@@ -86,9 +86,14 @@ def create_organization(name: str, slug: str, timezone: str = "UTC", language: s
 def get_organization_locations(organization_id: int, user_id: int | None = None) -> list[dict]:
     query = select(Location).where(Location.organization_id == organization_id, Location.active.is_(True))
     if user_id is not None:
-        query = query.join(CollectionTask, CollectionTask.location_id == Location.id).where(CollectionTask.assigned_user_id == user_id).distinct()
+        assigned_locations = select(CollectionTask.location_id).where(
+            CollectionTask.organization_id == organization_id,
+            CollectionTask.assigned_user_id == user_id,
+            CollectionTask.location_id.isnot(None),
+        )
+        query = query.where(Location.id.in_(assigned_locations))
     locations = db.session.scalars(
-        query.order_by(Location.demo_waste_kg.is_(None), Location.demo_waste_kg.desc(), Location.name)
+        query.order_by(Location.demo_waste_kg.desc().nullslast(), Location.name)
     ).all()
     return [
         {
@@ -105,7 +110,12 @@ def get_organization_locations(organization_id: int, user_id: int | None = None)
 def get_organization_bins(organization_id: int, user_id: int | None = None) -> list[dict]:
     query = select(SmartBin).options(joinedload(SmartBin.location)).where(SmartBin.organization_id == organization_id)
     if user_id is not None:
-        query = query.join(CollectionTask, CollectionTask.bin_id == SmartBin.id).where(CollectionTask.assigned_user_id == user_id).distinct()
+        assigned_bins = select(CollectionTask.bin_id).where(
+            CollectionTask.organization_id == organization_id,
+            CollectionTask.assigned_user_id == user_id,
+            CollectionTask.bin_id.isnot(None),
+        )
+        query = query.where(SmartBin.id.in_(assigned_bins))
     bins = db.session.scalars(query.order_by(SmartBin.bin_id)).all()
     results = []
     for item in bins:

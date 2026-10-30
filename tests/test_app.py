@@ -744,6 +744,36 @@ class SecurityAndDatabaseTests(unittest.TestCase):
         sqlite_options = build_engine_options("sqlite:///test.sqlite")
         self.assertEqual(sqlite_options, {"pool_pre_ping": True})
 
+    def test_staff_dashboard_and_permissions(self):
+        with app.app_context():
+            staff = User(
+                organization_id=self.organization_id,
+                email="staff_view@example.test",
+                password_hash=generate_password_hash("StaffPass2026!View"),
+                role="Staff",
+            )
+            db.session.add(staff)
+            db.session.commit()
+
+        staff_client = app.test_client()
+        login_resp = staff_client.post("/login", data={"email": "staff_view@example.test", "password": "StaffPass2026!View"})
+        self.assertEqual(login_resp.status_code, 302)
+
+        dash_resp = staff_client.get("/dashboard")
+        self.assertEqual(dash_resp.status_code, 200)
+        self.assertIn(b"Assigned collection tasks", dash_resp.data)
+
+        # RBAC verification: Staff cannot access general locations or user management
+        locs_resp = staff_client.get("/locations")
+        self.assertEqual(locs_resp.status_code, 403)
+
+        admin_resp = staff_client.get("/admin/users")
+        self.assertEqual(admin_resp.status_code, 403)
+
+        # Staff can access waste classification
+        class_resp = staff_client.get("/classification")
+        self.assertEqual(class_resp.status_code, 200)
+
 
 if __name__ == "__main__":
     unittest.main()
